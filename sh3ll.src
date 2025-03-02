@@ -1,7 +1,6 @@
 // Sh3ll by eroz33
 
-import_code("/lib/commands.src")
-import_code("/lib/libs.src")
+import_code("/lib/sh3ll/commands")
 
 // Global values
 globals.name = "sh3ll"
@@ -11,11 +10,11 @@ globals.running = true
 
 // Database
 globals.db = {}
-globals.db.name = "db"
-globals.db.folder = null
-globals.db.exploitFilesCount = 0
-globals.db.passwordFilesCount = 0
-globals.db.names = ["passwords", "exploits"]
+globals.DBlocation = "/root"
+globals.DBtables = ["systems", "mails", "banks", "exploits"]
+
+// Local variables
+crypto = null
 
 // Local variables for active user and active object.
 current = {}
@@ -68,7 +67,8 @@ Run = function(argv = [])
     return command.run(argv)
 end function
 
-clear_screen
+
+splash()
 splash()
 while globals.running
         if current.user == "root" then

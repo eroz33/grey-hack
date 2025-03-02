@@ -1,24 +1,23 @@
 // Commands library for Sh3ll
 
-import_code("/lib/libs.src")
+import_code("/lib/sh3ll/libs")
 
 
 // ------------------ Special Functions ------------------
 splash = function()
-    splash =         "<color=green>___________                    ________ ________   </color>" + char(10)
-    splash = splash + "<color=green>\_   _____/______  ____________\_____  \\_____  \  </color>" + char(10)
-    splash = splash + "<color=green> |    __)_\_  __ \/  _ \___   /  _(__  <  _(__  <  </color>" + char(10)
-    splash = splash + "<color=green> |        \|  | \(  <_> )    /  /       \/       \ </color>" + char(10)
-    splash = splash + "<color=green>/_______  /|__|   \____/_____ \/______  /______  / </color>" + char(10)
-    splash = splash + "<color=green>        \/                   \/       \/       \/  </color>" + char(10)
-    splash = splash + "                Version: " + globals.version + char(10)
-    splash = splash + "               Coder: " + globals.coder + char(10)
-    splash = splash + "             Database: "
-    if libs.dbCheck then
-        splash = splash + "<color=green>Available</color>" + char(10)
+    clear_screen
+    color = ""
+    if libs.checkDB then
+        color = "green"
     else
-        splash = splash + "<color=red>Offline</color>" + char(10)
+        color = "red"
     end if
+
+    splash =          "<color="+color+">   _____ __  _______ __    __ </color>" + char(10)
+    splash = splash + "<color="+color+">  / ___// / / /__  // /   / / </color>" + char(10)
+    splash = splash + "<color="+color+">  \__ \/ /_/ / /_ </ /   / /  </color>" + char(10)
+    splash = splash + "<color="+color+"> ___/ / __  /___/ / /___/ /___</color>" + char(10)
+    splash = splash + "<color="+color+">/____/_/ /_//____/_____/_____/</color>" + char(10)
     print(splash)
 end function
 
@@ -340,7 +339,7 @@ globals.commands["scan"]["run"] = function(argv = [])
                 targetIP = argv[1]
                 if not is_valid_ip(targetIP) then targetIP = nslookup(targetIP)
                 if not is_valid_ip(targetIP) then
-                    print(globals.name + ": Target IP not found.")
+                    print(globals.name + ": Target IP not found.") 
                     return false
                 end if
     
@@ -391,6 +390,15 @@ globals.commands["help"]["run"] = function(argv = [])
         end if
     end if
 
+    info =  info + char(9) + "<color=yellow>=== Database Commands ===</color>\n"
+    for command in globals.commandsDB 
+        if command.value.name.len < 6 then
+            info = info + char(9) + command.value.name + "  " + char(9) + char(9) + command.value.desc + "\n"
+        else
+            info = info + char(9) + command.value.name + "  " + char(9) + command.value.desc + "\n"
+        end if
+    end for
+
     print(info)
     return true
 end function
@@ -401,6 +409,7 @@ globals.commands["exit"]["run"] = function(argv = [])
     if argv.len > 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes NO arguments.")
     print("<color=green>" +globals.name+ "</color>" + ": <b><color=yellow>Exiting...</color></b>")
     globals.running = false
+    //globals.db.write()
     return true
 end function
 
@@ -408,40 +417,106 @@ end function
 
 globals.commandsDB = {}
 
-globals.commandsDB["dbcreate"] = { "name": "dbcreate", "desc": "Create a the database.", "args": "" }
-globals.commandsDB["dbcreate"]["run"] = function(argv = [])
+globals.commandsDB["dbconnect"] = { "name": "dbcreate", "desc": "Create a the database.", "args": "" }
+globals.commandsDB["dbconnect"]["run"] = function(argv = [])
     if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
     if argv.len != 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes no arguments.")
-    if libs.dbCheck then
+    if libs.checkDB then   
         print("<color=red>" +globals.name+ "</color>" + ": Database already exists.")
-        return true
+        return false
     end if
     secret = user_input("Database secret: ", true)
     if secret == "" then 
         print("<color=red>" +globals.name+ "</color>" + ": Database secret cannot be empty.") 
         return false
     end if
-    return libs.dbCreate(secret)
+    globals.db = DB.connect(globals.name, secret, globals.DBtables, globals.DBlocation)
+    globals.db.insert("systems", {"ip": "64.89.132.107", "user": "root", "pass": "Davi"})
+    if libs.checkDB then
+        globals.db.write()
+    print(globals.db.fetch("systems"))
+    if not libs.checkDB then
+        print("<color=red>" +globals.name+ "</color>" + ": Database failed to create.")
+        return false
+    end if
+    print("<color=green>" +globals.name+ "</color>" + ": Database created.")
+    return true
 end function
 
-globals.commandsDB["dbdelete"] = { "name": "dbdelete", "desc": "Delete an entry from the database.", "args": "[(opt) dbname]" }
-globals.commandsDB["dbdelete"]["run"] = function(argv = [])
+globals.commandsDB["dbwipe"] = { "name": "dbdelete", "desc": "Delete an entry from the database.", "args": "" }
+globals.commandsDB["dbwipe"]["run"] = function(argv = [])
     if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
-    if argv.len > 2 then return print("<color=red>" +globals.name+ "</color>" + ": Takes one optional argument.")
-    if not globals.db.hasIndex("exploits") or (globals.db.hasIndex("exploits") and globals.db.exploits == null) then return print("<color=red>" +globals.name+ "</color>" + ": Not connected to database.")
+    if argv.len != 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes no arguments.")
+    if not libs.checkDB then return print("<color=red>" +globals.name+ "</color>" + ": Not connected to database.")
 
-    if argv.len == 2 then
-        if libs.dbDelete(argv[1]) then
-            print("<color=yellow>" +globals.name+ "</color>" + ": Database deleted.")
-        else
-            print("<color=orange>" +globals.name+ "</color>" + ": Database failed to delete.")
-        end if
+    if user_input("Enter password to delete database: ", true) != globals.db.password then return print("<color=red>" +globals.name+ "</color>" + ": Incorrect password.")
+
+    globals.db.wipe()
+    if libs.checkDB then
+        print("<color=yellow>" +globals.name+ "</color>" + ": Database deleted.")
     else
-        if libs.dbDelete then
-            print("<color=yellow>" +globals.name+ "</color>" + ": Database deleted.")
-        else
-            print("<color=orange>" +globals.name+ "</color>" + ": Database failed to delete.")
-        end if
+        print("<color=orange>" +globals.name+ "</color>" + ": Database failed to delete.")
     end if
+
+    return true
+end function
+
+globals.commandsDB["dbfetch"] = { "name": "dbfetch", "desc": "Fetch a table from the database.", "args": "[table]" }
+globals.commandsDB["dbfetch"]["run"] = function(argv = [])
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len != 2 then return print("<color=red>" +globals.name+ "</color>" + ": Takes one argument.")
+    if not libs.checkDB then return print("<color=red>" +globals.name+ "</color>" + ": Not connected to database.")
+
+    fetch = globals.db.fetch(argv[1])
+    if typeof(fetch) == "list" then
+        for i in fetch
+            print(i)
+        end for
+        return true
+    end if
+
+    return print("<color=red>" +globals.name+ "</color>" + ": Invalid table name.")
+end function
+
+globals.commandsDB["dbprint"] = {"name":"dbprint", "desc":"Printes the database", "args": "[(opt) table]"}
+globals.commandsDB["dbprint"].run = function(argv)
+    if argv.len > 2 then return print(globals.name + ": Invalid arguments.")
+
+    // TODO:
+    // Consolidate the printing into a new function
+    if argv.len == 2 then
+        tablesToPrint = [argv[1]]
+    else
+        tablesToPrint = []
+        for table in globals.DBtables
+            tablesToPrint.push(table)
+	    end for
+    end if
+
+    for table in tablesToPrint
+        print("<b>" + table + "</b>")
+        // Printing the exploits table is a bit special
+        // We don't want to print the Bad Strings
+        if table == "exploits" then
+            i = 0
+            info = "# Name Version Vulns"
+            for entry in globals.db.fetch(table)
+                count = 0
+				for m in entry.memorys.indexes
+                    count = count + m.values.len
+                end for
+                info = info + char(10) + i + " " + entry.name + " " + entry.version + " " + count
+            	i = i + 1
+			end for
+            print(format_columns(info))
+        else if table == "systems" then
+            globals.db.printTable(table, {"ip":"Global_IP", "user": "Username", "pass": "Password"})
+        else if table == "banks" or table == "mails" then
+            globals.db.printTable(table, {"name":"Name", "pass":"Password"})
+        else
+            print("<color=red>" +globals.name+ "</color>" + ": Invalid table name.")
+            return false
+        end if
+    end for
     return true
 end function

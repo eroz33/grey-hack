@@ -1,9 +1,10 @@
 // useful functions for Sh3ll
 
 libs = {}
-
+import_code("/lib/sh3ll/dblib")
+    
 // ------------------ General Functions -------------------
-
+    
 libs["getRandomIP"] = function()
     parts = []
     maxTries = 100
@@ -18,9 +19,22 @@ libs["getRandomIP"] = function()
     end while
     return null
 end function
-
+    
+libs["checkDB"] = function(flag = null)
+    if current.computer.File(globals.DBlocation + "/" + globals.name + ".db") then
+        if globals.db == {} and flag == null then
+            secret = user_input("Enter database secret: ", true)
+            globals.db = DB.connect(globals.name, secret, globals.DBtables, globals.DBlocation)
+            if libs.checkDB then return true
+            return false
+        end if
+        return true
+    end if
+    return false
+end function
+    
 // ------------------ File Functions -------------------
-
+    
 libs["toFile"] = function(anyObject = null)
     if typeof(anyObject) == "shell" then return anyObject.host_computer.File("/")
     if typeof(anyObject) == "computer" then return anyObject.File("/")
@@ -32,27 +46,25 @@ libs["toFile"] = function(anyObject = null)
     end if
     return null
 end function
-
+    
 libs["navTo"] = function(anyObject, path = "/")
-    if typeof(anyObject) != "file" and typeof(anyObject) != "computer" and typeof(anyObject) != "shell" then
-        return null
-    end if
+    if typeof(anyObject) != "file" and typeof(anyObject) != "computer" and typeof(anyObject) != "shell" then return null
     if typeof(path) != "string" then return null
     if path.len == 0 then return null
-    
+        
     object = libs.toFile(anyObject)
     if not object then return null
-
+    
     // Trim trailing '/' character(s) from path.
     while (path.len > 1) and (path[-1] == "/")
         path = path[:-1]
     end while
-
+    
     // Trim starting '/' character(s) from path.
     while (path.len > 1) and (path[0] == "/")
         path = path[1:]
     end while
-
+    
     if path == "/" then return object
     path = path.split("/")
     for i in path.indexes
@@ -64,7 +76,7 @@ libs["navTo"] = function(anyObject, path = "/")
             end for
             return null
         end if
-
+    
         for file in object.get_folders
             if file.name != path[i] then continue
             found = true
@@ -73,22 +85,22 @@ libs["navTo"] = function(anyObject, path = "/")
         end for
         if not found then return null
     end for
-
+    
     return object
 end function
-
+    
 // ------------------ Network Functions -------------------
-
+    
 libs["getPorts"] = function(ip)
     ret = {}
     ret.targetIP = null
     ret.router = null
     ret.ports = null
-
+    
     targetIP = ip
     if not is_valid_ip(targetIP) then targetIP = nslookup(targetIP)
     if not is_valid_ip(targetIP) then return null
-
+    
     if is_lan_ip(targetIP) then
         ret.router = get_router
     else
@@ -102,40 +114,41 @@ libs["getPorts"] = function(ip)
         ret.ports = ret.router.device_ports(targetIP)
     end if
     if typeof(ret.ports) == "string" then return null
-
+    
     ret.targetIP = targetIP
     return ret
 end function
-
+    
 libs["scanPort"] = function(metaxploit, targetIP, targetPort)
     if typeof(metaxploit) != "MetaxploitLib" then return null
     if not is_valid_ip(targetIP) then return null
     if typeof(targetPort) != "number" then return null
-
+    
     netsession = metaxploit.net_use(targetIP, targetPort)
     if not netsession then
         print("<color=red>" +globals.name+ "</color>" + ": Cannot get netsession.")
         return null
     end if
-
+    
     metalib = netsession.dump_lib
     if not metalib then
         print("<color=red>" +globals.name+ "</color>" + ": Cannot dump lib.")
         return null
     end if
-
+    
     return libs.scanLib(metalib, metaxploit)
 end function
-
+    
 libs["scanLib"] = function(metalib, metax)
     if not metalib then return null
     if not metax then return null
 
-    if globals.db.folder != null and globals.db.hasIndex("exploits") then
+    if globals.db.fetch("exploits").len > 0 then
         ret = libs.dbQueryExploits(metalib.lib_name, metalib.version)
         if ret != null then return ret
     end if
-
+    
+    
     ret = {}
     ret.name = metalib.lib_name
     ret.version = metalib.version
@@ -153,145 +166,63 @@ libs["scanLib"] = function(metalib, metax)
         end for
     end for
 
-    if globals.db.folder != null and globals.db.hasIndex("exploits") then
+    if libs.checkDB and not libs.checkInDB("exploits", ret.name, ret.version) then
+        //print("writing to database")
         if libs.dbWriteExploits(ret) then
-            print("<color=yellow>Library '" + ret.name + "' version " + ret.version + " added.")
+            print("<color=yellow>Library '" + ret.name + "' version " + ret.version + " added.</color>")
         else
-            print("<color=orange>Library '" + ret.name + "' version " + ret.version + " already exists.")
-        end if
-    end if
-
-    return ret
-end function
-
-// ------------------ Database Functions -------------------
-
-libs["dbCheck"] = function
-    db = current.computer.File(current.folder.path + "/" + globals.db.name)
-    if not db then return false
-    globals.db.folder = db
-
-    for name in globals.db.names
-        folder = current.computer.File(current.folder.path + "/" + globals.db.name + "/" + name)
-        if not folder then return false
-        globals.db[name] = folder
-    end for
-
-    return true
-end function
-
-libs["dbCreate"] = function(secret = "")
-    if libs.dbCheck then
-        print("<color=red>" +globals.name+ "</color>" + ": Database already exists.")
-        return false
-    end if
-
-    db = current.computer.File(current.folder.path + "/" + globals.db.name)
-    if not db then
-        print("<color=yellow>" +globals.name+ "</color>" + ": Creating database folder '" + globals.db.name + "'...</color>")
-        current.computer.touch(current.folder.path, globals.db.name)
-        db = current.computer.File(current.folder.path + "/" + globals.db.name)
-        if not db then
-            print("<color=red>" +globals.name+ "</color>" + ": Folder '" + globals.db.name + "' already created.")
-            return false
-        else
-            print("<color=yellow>" +globals.name+ "</color>" + ": Folder '" + globals.db.name + "' created.</color>")
-        end if
-    end if
-    globals.db.folder = db
-
-    for dbname in globals.db.names
-        file = current.computer.File(current.folder.path + "/" + globals.db.name + "/" + dbname)
-        if not file then
-            print("<color=yellow>" +globals.name+ "</color>" + ": Creating database folder '" + dbname + "'...</color>")
-            current.computer.touch(current.folder.path + "/" + globals.db.name, dbname)
-            file = current.computer.File(current.folder.path + "/" + globals.db.name + "/" + dbname)
-            if not file then
-                print("<color=red>" +globals.name+ "</color>" + ": Folder '" + dbname + "' not created.")
-                globals.db[dbname] = null
-                return false
-            else
-                print("<color=yellow>" +globals.name+ "</color>" + ": Folder '" + dbname + "' created.</color>")
-                globals.db[dbname] = file
-            end if
-        end if
-    end for
-
-    // Create the secret file.
-    file = current.computer.File(current.folder.path + "/" + globals.db.name + "/" + "secret")
-    if not file then
-        print("<color=yellow>" +globals.name+ "</color>" + ": Creating database secret file '" + "secret" + "'...</color>")
-        current.computer.touch(current.folder.path + "/" + globals.db.name, "secret")
-        file = current.computer.File(current.folder.path + "/" + globals.db.name + "/" + "secret")
-        if not file then
-            print("<color=red>" +globals.name+ "</color>" + ": File '" + "secret" + "' not created.")
-            globals.db["secret"] = null
-            return false
-        else
-            print("<color=yellow>" +globals.name+ "</color>" + ": File '" + "secret" + "' created.</color>")
-            globals.db["secret"] = file
+            print("<color=orange>Library '" + ret.name + "' version " + ret.version + " already exists.</color>")
         end if
     end if
     
-    content = secret
-    result = file.set_content(content)
-    if typeof(result) == "string" then
-        print("<color=red>" +globals.name+ "</color>" + ": Cannot write to '" + "secret" + "' file.")
-        return false
-    end if
-
-    return true
+    return ret
 end function
-
-libs["dbDelete"] = function(dbName = "")
-    if dbName == "" then
-        if globals.db.folder == null then return false
-        globals.db.folder.delete
-        globals.db.folder = null
-        for dbname in globals.db.names
-            globals.db[dbname] = null
-        end for
-    else
-        if not globals.db.hasIndex(dbName) then return false
-        if typeof(globals.db[dbName]) != "file" then return false
-        globals.db[dbName].delete
-        globals.db[dbName] = null
-    end if
-    return true
-end function
-
-libs["dbParseToLines"] = function(result = "")
-    if typeof(result) != "string" or result == "" then return null
-    lines = result.split(";")[:-1]
-    converted = []
-    for line in lines
-        converted.push(line)
-    end for
-    return converted
-end function
-
-libs["encrypt"] = function(string = "")
-    if typeof(string) != "string" then return null
-    secFile = current.computer.File(globals.db.folder.path + "/secret")
-    if not secFile then return print("<color=red>" +globals.name+ "</color>" + ": Cannot find secret file.")
-    secret = secFile.get_content
-	safe = ""
-    for l in string
-		safe = safe + bitwise("^",l,secret)
-	end for
-    return safe
-end function
-
-libs["decrypt"] = function(string = "")
-    if typeof(string) != "string" then return null
-    secFile = current.computer.File(globals.db.folder.path + "/secret")
-    if not secFile then return print("<color=red>" +globals.name+ "</color>" + ": Cannot find secret file.")
-    secret = secFile.get_content
-    safe = ""
-    for l in string
-		safe = safe + bitwise("^",l,secret)
-	end for
-    return safe
-end function
-
+    
 // ------------------ Sh3ll Functions -------------------
+
+// ------------------ Database Functions ------------------
+
+libs["checkInDB"] = function(table, name, version)
+    if libs.checkDB(false) and globals.db.fetch(table).len == 0 then return false
+
+    exp = globals.db.fetchBy(table, "name", name)
+    for entry in exp
+        if entry.version == version then
+            return true
+        end if
+    end for
+
+    return false
+end function
+
+libs["dbQueryExploits"] = function(libname = "", libver = "")
+    if libs.checkDB(false) and globals.db.fetch("exploits").len == 0 then return null
+
+    // Look into why this is here
+    if libname == "" then
+        retrieved = []
+        for entry in globals.db.fetch("exploits")
+            print(entry)
+        end for
+    else 
+        exp = globals.db.fetchBy("exploits", "name", libname)
+        for entry in exp
+            if entry.version == libver then
+                return entry.memorys
+            end if
+        end for
+    end if
+    return null
+end function
+
+libs["dbWriteExploits"] = function(result = null)
+    if typeof(result) != "map" then return null
+
+    //print(result)
+    name = result.name
+    ver = result.version
+    mem = result.memorys
+    globals.db.insert("exploits", { "name": name, "version": ver, "memorys": mem })
+    globals.db.write()
+    return true
+end function
