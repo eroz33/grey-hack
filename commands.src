@@ -12,7 +12,13 @@ splash = function()
     splash = splash + "<color=green>/_______  /|__|   \____/_____ \/______  /______  / </color>" + char(10)
     splash = splash + "<color=green>        \/                   \/       \/       \/  </color>" + char(10)
     splash = splash + "                Version: " + globals.version + char(10)
-    splash = splash + "                 Coder: " + globals.coder + char(10)
+    splash = splash + "               Coder: " + globals.coder + char(10)
+    splash = splash + "             Database: "
+    if libs.dbCheck then
+        splash = splash + "<color=green>Available</color>" + char(10)
+    else
+        splash = splash + "<color=red>Offline</color>" + char(10)
+    end if
     print(splash)
 end function
 
@@ -25,41 +31,10 @@ globals.commandsShell = {}
 
 globals.commandsComputer = {}
 
-globals.commandsComputer["ifconfig"] = { "name": "ifconfig", "desc": "Display IP information.", "args": "" }
-globals.commandsComputer["ifconfig"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
-    if argv.len != 1 then return print(globals.name + ": Takes no arguments.")
-
-    if current.computer != null and not current.computer.is_network_active then
-        print(globals.name + ":<color=red>Error</color>: No network connection.")
-        return false
-    end if
-
-    info = ""
-    if current.computer.active_net_card == "WIFI" then
-        print("Connected to WIFI network.")
-        print("----------------------------");
-        info = info + "ESSID: " + current.router.essid_name + char(10)
-        info = info + "BSSID: " + current.router.bssid_name + char(10)
-    else 
-        print("Connected to LAN network.")
-        print("----------------------------");
-    end if
-    info = info + "Public_IP: " + current.publicip + char(10)
-    info = info + "Local_IP: " + current.localip + char(10)
-    if current.computer != null then
-        info = info + "Gateway: " + current.computer.network_gateway + char(10)
-    else
-        info = info + "Gateway: 0.0.0.0" + char(10)
-    end if
-    print(format_columns(info))
-    return true
-end function
-
 globals.commandsComputer["ls"] = { "name": "ls", "desc": "List the current directory or given directory.", "args": "[(opt) path] [(opt) -l]" }
 globals.commandsComputer["ls"]["run"] = function(argv = [])
     if typeof(argv) != "list" then
-        return print(globals.name + ": Invalid argument vector given.")
+        return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
     end if
 
     long_format = false
@@ -81,12 +56,12 @@ globals.commandsComputer["ls"]["run"] = function(argv = [])
                 long_format = true
                 show_all = true
             else
-                print(globals.name + ": <color=red>Error</color>: Invalid flag provided.")
+                print("<color=red>" +globals.name+ "</color>" + ":  Invalid flag provided.")
                 return false
             end if
             folder = current.folder
         else if argv[1].indexOf("/") != "Number" then
-            print(globals.name + ": <color=red>Error</color>: Invalid flag provided.")
+            print("<color=red>" +globals.name+ "</color>" + ":  Invalid flag provided.")
             return false
         else
             // Treat it as a path.
@@ -95,7 +70,7 @@ globals.commandsComputer["ls"]["run"] = function(argv = [])
     else if argv.len == 3 then
         // The two extra arguments must be: <path> and a flag as the last argument.
         if argv[2].indexOf("-") != 0 then
-            print(globals.name + ": <color=red>Error</color>: Invalid flag provided.")
+            print("<color=red>" +globals.name+ "</color>" + ":  Invalid flag provided.")
             return false
         end if
         // Validate flag.
@@ -107,12 +82,12 @@ globals.commandsComputer["ls"]["run"] = function(argv = [])
             long_format = true
             show_all = true
         else
-            print(globals.name + ": <color=red>Error</color>: Invalid flag provided.")
+            print("<color=red>" +globals.name+ "</color>" + ":  Invalid flag provided.")
             return false
         end if
         have_path = argv[1]
     else
-        print(globals.name + ": Too many arguments.")
+        print("<color=red>" +globals.name+ "</color>" + ": Too many arguments.")
         return false
     end if
 
@@ -130,7 +105,7 @@ globals.commandsComputer["ls"]["run"] = function(argv = [])
     end if
 
     if folder == null then
-        print(globals.name + ": Path not found.")
+        print("<color=red>" +globals.name+ "</color>" + ": Path not found.")
         return false
     end if
 
@@ -156,7 +131,7 @@ globals.commandsComputer["ls"]["run"] = function(argv = [])
     if info.len > 0 then
         print(format_columns(info[1:]))
     else
-        print(globals.name + ": No files found.")
+        print("<color=red>" +globals.name+ "</color>" + ": No files found.")
     end if
 
     return true
@@ -164,7 +139,7 @@ end function
 
 globals.commandsComputer["cd"] = { "name": "cd", "desc": "Change to a different directory.", "args": "[(opt) path]" }
 globals.commandsComputer["cd"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
 
     if argv.len == 1 then
         file = null
@@ -174,7 +149,7 @@ globals.commandsComputer["cd"]["run"] = function(argv = [])
             file = libs.navTo(current.object, "/home/" + current.user)
         end if
         if not file then
-            print(globals.name + ": Not found.")
+            print("<color=red>" +globals.name+ "</color>" + ": Folder not found.")
             return false
         end if
         current.folder = file
@@ -184,7 +159,7 @@ globals.commandsComputer["cd"]["run"] = function(argv = [])
             if current.folder.path != "/" then
                 current.folder = current.folder.parent
             else
-                print(globals.name + ": Already at root directory.")
+                print("<color=orange>" +globals.name+ "</color>" + ": Already at root directory.")
             end if
         else
             file = null
@@ -194,21 +169,44 @@ globals.commandsComputer["cd"]["run"] = function(argv = [])
                 file = libs.navTo(current.object, current.folder.path + "/" + argv[1])
             end if
             if not file then
-                print(globals.name + ": Not found.")
+                print("<color=red>" +globals.name+ "</color>" + ": Folder not found.")
                 return false
             end if
             current.folder = file
         end if
     else
-        return print(globals.name + ":<color=red>Error</color>: Invalid number of arguments.")
+        return print("<color=red>" +globals.name+ "</color>" + ": Invalid number of arguments.")
+    end if
+    return true
+end function
+
+globals.commandsComputer["cat"] = { "name": "cat", "desc": "Print the content of given file.", "args": "[path]" }
+globals.commandsComputer["cat"]["run"] = function(argv = [])
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len != 2 then return print("<color=red>" +globals.name+ "</color>" + ": Invalid arguments given.")
+
+    file = null
+    if argv[1].indexOf("/") != 0 then
+        file = libs.navTo(current.object, current.folder.path + "/" + argv[1])
+    else
+        file = libs.navTo(current.object, argv[1])
+    end if
+    if not file then
+        print("<color=red>" +globals.name+ "</color>" + ": File not found.")
+        return false
+    end if
+    if not file.is_folder and file.has_permission("r") then
+        print(file.get_content)
+    else
+        print("<color=red>" +globals.name+ "</color>" + ": Permission <color=red>denied</color>!")
     end if
     return true
 end function
 
 globals.commandsComputer["ps"] = { "name": "ps", "desc": "Display process information.", "args": "" }
 globals.commandsComputer["ps"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
-    if argv.len != 1 then return print(globals.name + ": Takes no arguments.")
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len != 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes no arguments.")
 
     info = "USER  PID  COMMAND"
     procs = current.computer.show_procs
@@ -222,10 +220,41 @@ globals.commandsComputer["ps"]["run"] = function(argv = [])
     return true
 end function
 
+globals.commandsComputer["ifconfig"] = { "name": "ifconfig", "desc": "Display IP information.", "args": "" }
+globals.commandsComputer["ifconfig"]["run"] = function(argv = [])
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len != 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes no arguments.")
+
+    if current.computer != null and not current.computer.is_network_active then
+        print("<color=red>" +globals.name+ "</color>" + ": No network connection.")
+        return false
+    end if
+
+    info = ""
+    if current.computer.active_net_card == "WIFI" then
+        print("Connected to <color=yellow>WIFI</color> network.")
+        print("----------------------------");
+        info = info + "ESSID: " + current.router.essid_name + char(10)
+        info = info + "BSSID: " + current.router.bssid_name + char(10)
+    else 
+        print("Connected to <color=yellow>LAN</color> network.")
+        print("----------------------------");
+    end if
+    info = info + "Public_IP: " + current.publicip + char(10)
+    info = info + "Local_IP: " + current.localip + char(10)
+    if current.computer != null then
+        info = info + "Gateway: " + current.computer.network_gateway + char(10)
+    else
+        info = info + "Gateway: 0.0.0.0" + char(10)
+    end if
+    print(format_columns(info))
+    return true
+end function
+
 globals.commandsComputer["clear"] = { "name": "clear", "desc": "Clear the terminal screen.", "args": "" }
 globals.commandsComputer["clear"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
-    if argv.len > 1 then return print(globals.name + ": Takes no arguments.")
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len > 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes no arguments.")
     clear_screen
     splash()
     return null
@@ -238,22 +267,99 @@ globals.commands = {}
 
 globals.commands["random"] = { "name": "random", "desc": "Get a random IP to hack.", "args": "" }
 globals.commands["random"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
-    if argv.len != 1 then return print(globals.name + ": Takes NO arguments.")
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len != 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes NO arguments.")
 
     randomIP = libs.getRandomIP
     if not randomIP then
-        print("Cannot get random IP.")
+        print("<color=red>" +globals.name+ "</color>" + ":Cannot get random IP.")
         return false
     end if
-    print("Random global IP: " + randomIP)
+    print("<color=green>" +globals.name+ "</color>" + ": Random global IP: " + randomIP)
+    return true
+end function
+
+globals.commands["crack"] = { "name": "crack", "desc": "Crack a password or encrypted data.", "args": "[hash]" }
+globals.commands["crack"]["run"] = function(argv = [])
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len != 2 then return print("<color=red>" +globals.name+ "</color>" + ": Takes one argument.")
+
+    // Run decipher on hash.
+    password = crypto.decipher(argv[1])
+    if not password then
+        print("<color=red>" +globals.name+ "</color>" + ": Cannot decipher password hash.")
+        return false
+    end if
+    print("<color=green>" +globals.name+ "</color>" + ": Cracked password: <b>" + password + "</b>")
+    return true
+end function
+
+globals.commands["scan"] = { "name": "scan", "desc": "Scan a network for open ports.", "args": "[IP] [(opt) Port]" }
+globals.commands["scan"]["run"] = function(argv = [])
+    if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
+    if argv.len < 2 or argv.len > 3 then return print(globals.name + ": Invalid arguments given.")
+    
+    if argv.len == 2 then
+        ret = libs.getPorts(argv[1])
+        if not ret then return print(globals.name + ": Network address not found.")
+        if ret.ports.len == 0 then return print(globals.name + ": Scan finished. No ports found.")
+
+        info = "PORT STATE SERVICE VERSION LAN"
+        for port in ret.ports
+            servinfo = ret.router.port_info(port)
+            status = "open"
+
+            if not is_lan_ip(ret.targetIP) and port.is_closed then
+                status = "closed"
+            end if
+            info = info + char(10) + port.port_number + " " + status + " " + servinfo + " " + port.get_lan_ip
+        end for
+        print(format_columns(info))
+    else if argv.len == 3 then
+        // Load metaxploit.so into memory.
+        metaxploit = include_lib("/lib/metaxploit.so")
+        if not metaxploit then metaxploit = include_lib(parent_path(program_path) + "/metaxploit.so")
+        if not metaxploit then exit(globals.name + ": Cannot find metaxploit.so!")
+
+        if argv[2] == "all" then
+            ret = libs.getPorts(argv[1])
+            if not ret then return print(globals.name + ": Network address not found.")
+            if ret.ports.len == 0 then return print(globals.name + ": Scan finished. No ports found.")
+
+            libs.scanPort(metaxploit, ret.targetIP, 0)
+            for port in ret.ports
+                if not is_lan_ip(ret.targetIP) and port.is_closed then
+                    continue
+                end if
+
+                libs.scanPort(metaxploit, ret.targetIP, port.port_number)
+            end for
+        else
+            targetPort = argv[2].to_int
+            if typeof(targetPort) == "number" then
+                targetIP = argv[1]
+                if not is_valid_ip(targetIP) then targetIP = nslookup(targetIP)
+                if not is_valid_ip(targetIP) then
+                    print(globals.name + ": Target IP not found.")
+                    return false
+                end if
+    
+                libs.scanPort(metaxploit, targetIP, targetPort)
+            else
+                print(globals.name + ": Port given was not a number.")
+                return false
+            end if
+        end if
+    else
+        print(globals.name + ": Invalid arguments given.")
+    end if
     return true
 end function
 
 globals.commands["help"] = { "name": "help", "desc": "Display a list of commands.", "args": "" }
 globals.commands["help"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
-    if argv.len != 1 then return print(globals.name + ": Does NOT take any arguments.")
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len != 1 then return print("<color=red>" +globals.name+ "</color>" + ": Does NOT take any arguments.")
 
     info =  char(9) + "<color=yellow>=== General Commands ===</color>\n"
     for command in globals.commands
@@ -291,9 +397,51 @@ end function
 
 globals.commands["exit"] = { "name": "exit", "desc": "Exit this shell.", "args": "" }
 globals.commands["exit"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
-    if argv.len > 1 then return print(globals.name + ": Takes NO arguments.")
-    print(globals.name + ": <b><color=yellow>Exiting...</color></b>")
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len > 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes NO arguments.")
+    print("<color=green>" +globals.name+ "</color>" + ": <b><color=yellow>Exiting...</color></b>")
     globals.running = false
+    return true
+end function
+
+// ------------------ Database Commands -------------------
+
+globals.commandsDB = {}
+
+globals.commandsDB["dbcreate"] = { "name": "dbcreate", "desc": "Create a the database.", "args": "" }
+globals.commandsDB["dbcreate"]["run"] = function(argv = [])
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len != 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes no arguments.")
+    if libs.dbCheck then
+        print("<color=red>" +globals.name+ "</color>" + ": Database already exists.")
+        return true
+    end if
+    secret = user_input("Database secret: ", true)
+    if secret == "" then 
+        print("<color=red>" +globals.name+ "</color>" + ": Database secret cannot be empty.") 
+        return false
+    end if
+    return libs.dbCreate(secret)
+end function
+
+globals.commandsDB["dbdelete"] = { "name": "dbdelete", "desc": "Delete an entry from the database.", "args": "[(opt) dbname]" }
+globals.commandsDB["dbdelete"]["run"] = function(argv = [])
+    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
+    if argv.len > 2 then return print("<color=red>" +globals.name+ "</color>" + ": Takes one optional argument.")
+    if not globals.db.hasIndex("exploits") or (globals.db.hasIndex("exploits") and globals.db.exploits == null) then return print("<color=red>" +globals.name+ "</color>" + ": Not connected to database.")
+
+    if argv.len == 2 then
+        if libs.dbDelete(argv[1]) then
+            print("<color=yellow>" +globals.name+ "</color>" + ": Database deleted.")
+        else
+            print("<color=orange>" +globals.name+ "</color>" + ": Database failed to delete.")
+        end if
+    else
+        if libs.dbDelete then
+            print("<color=yellow>" +globals.name+ "</color>" + ": Database deleted.")
+        else
+            print("<color=orange>" +globals.name+ "</color>" + ": Database failed to delete.")
+        end if
+    end if
     return true
 end function

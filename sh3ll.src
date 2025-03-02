@@ -27,6 +27,14 @@ current.router = get_router
 current.publicip = get_router.public_ip
 current.localip = current.computer.local_ip
 
+// Set the crypto library.
+crypto = include_lib("/lib/crypto.so")
+if not crypto then crypto = include_lib(parent_path(program_path) + "/crypto.so")
+if not crypto then
+    print(globals.name + ": Cannot find 'crypto.so' library on system.")
+    return false
+end if
+
 
 // ----------------- Main Program --------------------
 if params.len != 0 then exit("Usage: " + program_path.split("/")[-1])
@@ -35,7 +43,10 @@ if params.len != 0 then exit("Usage: " + program_path.split("/")[-1])
 Run = function(argv = [])
     if typeof(argv) != "list" then return print(globals.name + ": Invalid type, needs to be of type 'string'.")
 
+    // Load commands.
+    // TODO: Change sorting of commands to be in line with needed permissions.
     commands = globals.commands
+    commands = commands + globals.commandsDB
     if typeof(current.object) == "shell" or typeof(current.object) == "computer" then
         commands = commands + globals.commandsComputer
         if typeof(current.object) == "shell" then
@@ -47,6 +58,9 @@ Run = function(argv = [])
     command = commands[argv[0].lower.trim]
     if argv.len > 1 then
         if argv[1] == "-h" or argv[1] == "--help" then
+            map = current.computer.File("/root/Config/Map.conf")
+            print(map)
+            print(map.get_content)
             return print("Usage: " + command.name + " " + command.args)
         end if
     end if
