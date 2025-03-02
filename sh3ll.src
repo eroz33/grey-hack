@@ -1,0 +1,137 @@
+// Sh3ll by eroz33
+
+import_code("/lib/commands.src")
+import_code("/lib/libs.src")
+
+// Global values
+globals.name = "sh3ll"
+globals.coder = "eroz33"
+globals.version = "0.1"
+globals.running = true
+globals.crypto = null
+globals.objects = []
+
+// Database
+globals.db = {}
+globals.db.name = "db"
+globals.db.folder = null
+globals.db.exploitFilesCount = 0
+globals.db.passwordFilesCount = 0
+globals.db.names = ["passwords", "exploits"]
+
+// TODO: Local / remote system needs reworked
+
+// Local variables for active user and active object.
+local = {}
+local.user = active_user
+local.object = get_shell
+local.computer = get_shell.host_computer
+local.folder = get_shell.host_computer.File(current_path)
+local.router = get_router
+local.publicip = get_router.public_ip
+local.localip = local.computer.local_ip
+
+dirtyObjects = []
+vfile = null
+
+// Remote variables for active user and active object.
+remote = {}
+remote.user = active_user
+remote.object = get_shell
+remote.computer = get_shell.host_computer
+remote.folder = get_shell.host_computer.File(current_path)
+remote.router = get_router
+remote.publicip = get_router.public_ip
+remote.localip = remote.computer.local_ip
+
+// Current user
+current = {}
+current.user = remote.user
+current.object = remote.object
+current.computer = function
+    if typeof(current.object) == "shell" then return current.object.host_computer
+    if typeof(current.object) == "computer" then return current.object
+    return null
+end function
+current.folder = current.computer.File(current_path)
+current.router = remote.router
+current.publicip = function
+    return current.router.public_ip
+end function
+current.localip = current.computer.local_ip
+
+
+// Set the crypto library if it is the local machine.
+if remote.publicip == local.publicip and remote.localip == local.localip then
+    // Get crypto from local system.
+    crypto = include_lib("/lib/crypto.so")
+    if not crypto then crypto = include_lib(parent_path(program_path) + "/crypto.so")
+    if not crypto then
+        print(globals.name + ": Cannot find 'crypto.so' library on system.")
+        return false
+    end if
+end if
+
+// Set the terminal to yours.
+interface = get_custom_object
+if interface.indexes.len != 2 then
+    local = interface.local
+    vfile = interface.vfile
+    crypto = interface.crypto
+    dirtyObjects = interface.dirty
+end if
+
+// ----------------- Main Program --------------------
+if params.len != 0 then exit("Usage: " + program_path.split("/")[-1])
+
+// Execute given command with arguments.
+CommandExecute = function(argv = [])
+    if typeof(argv) != "list" then return print(globals.name + ": Invalid type, needs to be of type 'string'.")
+    //if argv.len > 1 and argv[1] == "" then return print(globals.name + ": No arguments given when expected.")
+
+    commands = globals.commands
+    if typeof(current.object) == "shell" or typeof(current.object) == "computer" then
+        commands = commands + globals.commandsComputer
+        if typeof(current.object) == "shell" then
+            commands = commands + globals.commandsShell
+        end if
+    end if
+
+    if not commands.hasIndex(argv[0].lower.trim) then return print(globals.name + ": Command not found!")
+    command = commands[argv[0].lower.trim]
+    if argv.len > 1 then
+        if argv[1] == "-h" or argv[1] == "--help" then
+            return print("Usage: " + command.name + " " + command.args)
+        end if
+    end if
+
+    return command.run(argv)
+end function
+
+// TODO: Make this a function.
+splash = "___________                    ________ ________   " + char(10)
+splash = splash + "\_   _____/______  ____________\_____  \\_____  \  " + char(10)
+splash = splash + " |    __)_\_  __ \/  _ \___   /  _(__  <  _(__  <  " + char(10)
+splash = splash + " |        \|  | \(  <_> )    /  /       \/       \ " + char(10)
+splash = splash + "/_______  /|__|   \____/_____ \/______  /______  / " + char(10)
+splash = splash + "        \/                   \/       \/       \/  " + char(10)
+splash = splash + "                Version: " + globals.version + char(10)
+splash = splash + "                 Coder: " + globals.coder + char(10)
+print(splash)
+
+// Connect to the database server if there is one available.
+if libs.dbCheck then
+    print("<color=yellow>Database Status:</color> <color=green>Available</color>")
+else
+    print("<color=yellow>Database Status:</color> <color=red>Not Available</color>")
+end if
+
+while globals.running
+        if local.user == "root" then
+            input = user_input("<color=#1070afff>" + current.user + "</color><color=white>@</color>" + current.publicip + "<color=yellow>[</color>" + current.folder.path + "<color=yellow>]</color><color=red>>:</color> ")
+        else
+            input = user_input("<color=#1070afff>" + current.user + "</color><color=white>@</color>" + current.publicip + "<color=yellow>[</color>" + current.folder.path + "<color=yellow>]</color><color=green>>:</color> ")
+        end if
+    if input == "" then continue
+    CommandExecute(input.trim.split(" "))
+end while
