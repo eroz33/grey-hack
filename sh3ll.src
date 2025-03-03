@@ -53,13 +53,24 @@ Run = function(argv = [])
         end if
     end if
 
-    if not commands.hasIndex(argv[0].lower.trim) then return print(globals.name + ": Command not found!")
+    if not commands.hasIndex(argv[0].lower.trim) then 
+        if command_info(argv[0]) != "Unknown info" then 
+            if argv.len == 2 then
+                current.object.launch("/bin/"+argv[0], argv[1] )
+                return true
+            else if argv.len == 3 then
+                current.object.launch("/bin/"+argv[0], argv[1] +" "+ argv[2])
+                return true
+            else
+                current.object.launch("/bin/"+argv[0])
+                return true
+            end if
+        end if
+        return print(globals.name + ": Command not found!")
+    end if
     command = commands[argv[0].lower.trim]
     if argv.len > 1 then
         if argv[1] == "-h" or argv[1] == "--help" then
-            map = current.computer.File("/root/Config/Map.conf")
-            print(map)
-            print(map.get_content)
             return print("Usage: " + command.name + " " + command.args)
         end if
     end if

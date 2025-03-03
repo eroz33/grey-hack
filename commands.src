@@ -21,7 +21,6 @@ splash = function()
     print(splash)
 end function
 
-
 // ------------------- Shell Commands --------------------
 
 globals.commandsShell = {}
@@ -42,6 +41,7 @@ globals.commandsComputer["ls"]["run"] = function(argv = [])
     folder = null
 
     // Evaluate based on argv.len; argv[0] is the command name.
+    //print(argv)
     if argv.len == 1 then
         folder = current.folder
     else if argv.len == 2 then
@@ -59,7 +59,7 @@ globals.commandsComputer["ls"]["run"] = function(argv = [])
                 return false
             end if
             folder = current.folder
-        else if argv[1].indexOf("/") != "Number" then
+        else if not typeof(argv[1].indexOf("/")) == "number" then
             print("<color=red>" +globals.name+ "</color>" + ":  Invalid flag provided.")
             return false
         else
@@ -179,46 +179,6 @@ globals.commandsComputer["cd"]["run"] = function(argv = [])
     return true
 end function
 
-globals.commandsComputer["cat"] = { "name": "cat", "desc": "Print the content of given file.", "args": "[path]" }
-globals.commandsComputer["cat"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
-    if argv.len != 2 then return print("<color=red>" +globals.name+ "</color>" + ": Invalid arguments given.")
-
-    file = null
-    if argv[1].indexOf("/") != 0 then
-        file = libs.navTo(current.object, current.folder.path + "/" + argv[1])
-    else
-        file = libs.navTo(current.object, argv[1])
-    end if
-    if not file then
-        print("<color=red>" +globals.name+ "</color>" + ": File not found.")
-        return false
-    end if
-    if not file.is_folder and file.has_permission("r") then
-        print(file.get_content)
-    else
-        print("<color=red>" +globals.name+ "</color>" + ": Permission <color=red>denied</color>!")
-    end if
-    return true
-end function
-
-globals.commandsComputer["ps"] = { "name": "ps", "desc": "Display process information.", "args": "" }
-globals.commandsComputer["ps"]["run"] = function(argv = [])
-    if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
-    if argv.len != 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes no arguments.")
-
-    info = "USER  PID  COMMAND"
-    procs = current.computer.show_procs
-    for proc in procs.split(char(10))[1:]
-        usr = proc.split(" ")[0]
-        pid = proc.split(" ")[1]
-        cmd = proc.split(" ")[4]
-        info = info + char(10) + usr + "  " + pid + "  " + cmd
-    end for
-    print(format_columns(info))
-    return true
-end function
-
 globals.commandsComputer["ifconfig"] = { "name": "ifconfig", "desc": "Display IP information.", "args": "" }
 globals.commandsComputer["ifconfig"]["run"] = function(argv = [])
     if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
@@ -293,8 +253,8 @@ globals.commands["crack"]["run"] = function(argv = [])
     return true
 end function
 
-globals.commands["scan"] = { "name": "scan", "desc": "Scan a network for open ports.", "args": "[IP] [(opt) Port]" }
-globals.commands["scan"]["run"] = function(argv = [])
+globals.commands["nmap"] = { "name": "nmap", "desc": "Scan a network for open ports.", "args": "[IP] [(opt) Port]" }
+globals.commands["nmap"]["run"] = function(argv = [])
     if typeof(argv) != "list" then return print(globals.name + ": Invalid argument vector given.")
     if argv.len < 2 or argv.len > 3 then return print(globals.name + ": Invalid arguments given.")
     
@@ -303,15 +263,16 @@ globals.commands["scan"]["run"] = function(argv = [])
         if not ret then return print(globals.name + ": Network address not found.")
         if ret.ports.len == 0 then return print(globals.name + ": Scan finished. No ports found.")
 
-        info = "PORT STATE SERVICE VERSION LAN"
+        info = "<color=#ffffff>HOST</color> <color=#ffffff>PORT</color> <color=#ffffff>STATUS</color> <color=#ffffff>SERVICE</color>  <color=#ffffff>VERSION</color>"
+
         for port in ret.ports
             servinfo = ret.router.port_info(port)
-            status = "open"
+            status = "<color=#00ff00>open</color>"
 
             if not is_lan_ip(ret.targetIP) and port.is_closed then
-                status = "closed"
+                status = "<color=#ff0000>closed</color>"
             end if
-            info = info + char(10) + port.port_number + " " + status + " " + servinfo + " " + port.get_lan_ip
+            info = info + char(10) + "<color=#ffffff>" + port.get_lan_ip + "</color>" + " "+ "<color=#ffffff>" + port.port_number + "</color>" + " " + status + " "+ "<color=#ffffff>" + servinfo + "</color>"
         end for
         print(format_columns(info))
     else if argv.len == 3 then
@@ -403,8 +364,8 @@ globals.commands["help"]["run"] = function(argv = [])
     return true
 end function
 
-globals.commands["exit"] = { "name": "exit", "desc": "Exit this shell.", "args": "" }
-globals.commands["exit"]["run"] = function(argv = [])
+globals.commands["q"] = { "name": "q", "desc": "Exit this shell.", "args": "" }
+globals.commands["q"]["run"] = function(argv = [])
     if typeof(argv) != "list" then return print("<color=red>" +globals.name+ "</color>" + ": Invalid argument vector given.")
     if argv.len > 1 then return print("<color=red>" +globals.name+ "</color>" + ": Takes NO arguments.")
     print("<color=green>" +globals.name+ "</color>" + ": <b><color=yellow>Exiting...</color></b>")
